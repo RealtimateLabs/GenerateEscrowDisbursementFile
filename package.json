@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "realtimatecommon": "github:RealtimateLabs/RealtimateCommon"
+  }
+}

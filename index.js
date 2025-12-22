@@ -1,6 +1,13 @@
 'use strict';
 
+const mongoose = require('mongoose');
+var mongodb = require('mongodb');
+var ObjectId = mongodb.ObjectId;
+const { CRMOwnertoUserIDMap } = require('realtimatecommon/common/typedefs');
+
 const { fetchEscrowTxnsByUserId } = require('./escrowService');
+const { computeAccountDisbursements } = require('./accountDisbursements');
+const { generateDisbursementsExcel } = require('./exportToExcel');
 
 /**
  * AWS Lambda handler – triggered by EventBridge cron.
@@ -20,14 +27,13 @@ exports.handler = async (event) => {
     }
 
     // Delegate to service layer
-    const txns = await fetchEscrowTxnsByUserId(userId);
+    const txnsByAccount = await fetchEscrowTxnsByUserId(userId);
+    const accountDisbursements = await computeAccountDisbursements(txnsByAccount);
+    const result = await generateDisbursementsExcel(accountDisbursements);
 
     return {
       statusCode: 200,
-      body: JSON.stringify({
-        count: txns.length,
-        txns, // In production you might redact/trim this
-      }),
+      message: 'Successfully created disbursement file',
     };
   } catch (error) {
     console.error('Error in Lambda:', error);
@@ -37,3 +43,8 @@ exports.handler = async (event) => {
     };
   }
 };
+
+// For testing
+this.handler({
+  userId: new ObjectId(CRMOwnertoUserIDMap.oroproptech),
+});
