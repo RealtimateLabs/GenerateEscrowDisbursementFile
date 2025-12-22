@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "exceljs": "^4.4.0",
     "realtimatecommon": "github:RealtimateLabs/RealtimateCommon"
   }
 }

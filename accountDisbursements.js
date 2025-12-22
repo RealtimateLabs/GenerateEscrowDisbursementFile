@@ -34,10 +34,7 @@ async function computeAccountDisbursements(txnsByAccount = []) {
         const disbursement = {};
 
         // Skip if already disbursed >80% of rent and over threshold
-        if (
-            Math.abs(element.disbursedThisMonth) >= 1000 &&
-            Math.abs(element.disbursedThisMonth) > element.rent * 0.8
-        ) {
+        if (Math.abs(element.disbursedThisMonth) >= 1000 && Math.abs(element.disbursedThisMonth) > element.rent * 0.8) {
             console.log(
                 `${element.escrow.accountNum}: Already disbursed ${element.disbursedThisMonth} of rent ${element.rent} this month. Skipping...`
             );
@@ -60,6 +57,13 @@ async function computeAccountDisbursements(txnsByAccount = []) {
                 disbursement[`disbursement${i + 1}_ifscNum`] = disb.depositAccount.ifscNum;
                 disbursement[`disbursement${i + 1}_accountNum`] = disb.depositAccount.accountNum;
                 disbursement[`disbursement${i + 1}_accountType`] = disb.depositAccount.accountType;
+
+                if (disb.depositAccount.accountNum === ownerPMSDisbAccount?.accountNumber) {
+                    disbursement[`disbursement${i + 1}_disbrsementType`] = 'PMS Fee';
+                }
+                else {
+                    disbursement[`disbursement${i + 1}_disbrsementType`] = 'Rent';
+                }
 
                 totalFixedAmount += Number(currentAmount);
             }
@@ -87,10 +91,17 @@ async function computeAccountDisbursements(txnsByAccount = []) {
                 disbursement[`disbursement${i + 1}_ifscNum`] = disb.depositAccount.ifscNum;
                 disbursement[`disbursement${i + 1}_accountNum`] = disb.depositAccount.accountNum;
                 disbursement[`disbursement${i + 1}_accountType`] = disb.depositAccount.accountType;
+
+                if (disb.depositAccount.accountNum === ownerPMSDisbAccount?.accountNumber) {
+                    disbursement[`disbursement${i + 1}_disbrsementType`] = 'PMS Fee';
+                }
+                else {
+                    disbursement[`disbursement${i + 1}_disbrsementType`] = 'Rent';
+                }
             }
         }
 
-        // Construct output with sequential disbursement keys
+        // Construct output with disbursements array instead of numbered fields
         const disbursementOut = {
             propertyAddress: element.propertyAddress?.[0],
             escrowAccountNum: element.escrow.accountNum,
@@ -98,17 +109,23 @@ async function computeAccountDisbursements(txnsByAccount = []) {
             rent: element.rent,
             disbursedThisMonth: Math.abs(element.disbursedThisMonth),
             ownership: element.ownership,
+            disbursements: [],
         };
 
-        let disbCount = 1;
         for (let i = 0; i < element.disbursementRules[0].length; i++) {
-            disbursementOut[`disbursement${disbCount}_fixedAmount`] = disbursement[`disbursement${i + 1}_fixedAmount`];
-            disbursementOut[`disbursement${disbCount}_accountName`] = disbursement[`disbursement${i + 1}_accountName`];
-            disbursementOut[`disbursement${disbCount}_bankName`] = disbursement[`disbursement${i + 1}_bankName`];
-            disbursementOut[`disbursement${disbCount}_ifscNum`] = disbursement[`disbursement${i + 1}_ifscNum`];
-            disbursementOut[`disbursement${disbCount}_accountNum`] = disbursement[`disbursement${i + 1}_accountNum`];
-            disbursementOut[`disbursement${disbCount}_accountType`] = disbursement[`disbursement${i + 1}_accountType`];
-            disbCount += 1;
+            const fixedAmount = disbursement[`disbursement${i + 1}_fixedAmount`];
+            // Only push entries that have an amount computed
+            if (fixedAmount !== undefined && fixedAmount !== null) {
+                disbursementOut.disbursements.push({
+                    fixedAmount,
+                    accountName: disbursement[`disbursement${i + 1}_accountName`],
+                    bankName: disbursement[`disbursement${i + 1}_bankName`],
+                    ifscNum: disbursement[`disbursement${i + 1}_ifscNum`],
+                    accountNum: disbursement[`disbursement${i + 1}_accountNum`],
+                    accountType: disbursement[`disbursement${i + 1}_accountType`],
+                    disbrsementType: disbursement[`disbursement${i + 1}_disbrsementType`],
+                });
+            }
         }
 
         return disbursementOut;
@@ -120,4 +137,3 @@ async function computeAccountDisbursements(txnsByAccount = []) {
 module.exports = {
     computeAccountDisbursements,
 };
-
