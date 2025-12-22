@@ -174,8 +174,7 @@ async function fetchEscrowTxnsByUserId(userId) {
     },
   ];
 
-  console.log('Querying TxnEscrow with:', query);
-
+  //   console.log('Querying TxnEscrow with:', query);
   const txns = await TxnEscrow.aggregate(query).exec();
   console.log(`Found ${txns.length} TxnEscrow records for userId ${userId}.`);
 
