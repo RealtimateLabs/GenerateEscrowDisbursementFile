@@ -30,7 +30,6 @@ async function generateDisbursementsExcel(accountDisbursements = [], options = {
     { header: 'Current Balance', key: 'currentBalance', width: 16 },
     { header: 'Rent', key: 'rent', width: 12 },
     { header: 'Disbursed This Month', key: 'disbursedThisMonth', width: 20 },
-    { header: 'Ownership', key: 'ownership', width: 16 },
     { header: 'Disbursement Amount', key: 'fixedAmount', width: 18 },
     { header: 'Disbursement Type', key: 'disbrsementType', width: 18 },
     { header: 'Beneficiary Name', key: 'accountName', width: 24 },
@@ -40,11 +39,20 @@ async function generateDisbursementsExcel(accountDisbursements = [], options = {
     { header: 'Beneficiary Account Type', key: 'accountType', width: 22 },
   ];
 
-  // Bold header row
-  worksheet.getRow(1).font = { bold: true };
+  // Bold header row with light gray background
+  const headerRow = worksheet.getRow(1);
+  headerRow.font = { bold: true };
+  headerRow.eachCell((cell) => {
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFD9D9D9' }, // light gray
+    };
+  });
 
   // Add rows, tracking ranges for each account so we can merge common fields
   let accountCount = 0;
+  let accountIndex = 0; // used to alternate background colors per account
   for (const account of accountDisbursements) {
     const disbursements = Array.isArray(account.disbursements) ? account.disbursements : [];
     if (disbursements.length === 0) {
@@ -52,6 +60,7 @@ async function generateDisbursementsExcel(accountDisbursements = [], options = {
     }
 
     accountCount += 1;
+    accountIndex += 1;
     const startRow = worksheet.rowCount + 1;
 
     for (const disb of disbursements) {
@@ -73,6 +82,27 @@ async function generateDisbursementsExcel(accountDisbursements = [], options = {
 
     const endRow = worksheet.rowCount;
 
+    // Apply alternating background color per account block
+    const isEvenAccount = accountIndex % 2 === 0;
+    const fillLightBlue = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFDDEBF7' }, // light blue
+    };
+    const fillWhite = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFFFFFFF' }, // white
+    };
+    const fill = isEvenAccount ? fillLightBlue : fillWhite;
+
+    for (let rowNum = startRow; rowNum <= endRow; rowNum++) {
+      const row = worksheet.getRow(rowNum);
+      row.eachCell((cell) => {
+        cell.fill = fill;
+      });
+    }
+
     // Merge common cells vertically for this account
     if (endRow > startRow) {
       const colsToMerge = [
@@ -81,7 +111,6 @@ async function generateDisbursementsExcel(accountDisbursements = [], options = {
         'C', // currentBalance
         'D', // rent
         'E', // disbursedThisMonth
-        'F', // ownership
       ];
 
       for (const col of colsToMerge) {
