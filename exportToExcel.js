@@ -50,6 +50,15 @@ async function generateDisbursementsExcel(accountDisbursements = [], options = {
     };
   });
 
+  // Freeze header row and first column
+  worksheet.views = [
+    {
+      state: 'frozen',
+      xSplit: 1, // first column fixed
+      ySplit: 1, // header row fixed
+    },
+  ];
+
   // Add rows, tracking ranges for each account so we can merge common fields
   let accountCount = 0;
   let accountIndex = 0; // used to alternate background colors per account
