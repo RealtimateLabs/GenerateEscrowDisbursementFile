@@ -1,6 +1,9 @@
 'use strict';
 
-const OwnershipDisbursementAccount = require('realtimatecommon/common/disbursement_accounts');
+const {
+  OwnershipExpenseAccount,
+  OwnershipDisbursementAccount,
+} = require('realtimatecommon/common/disbursement_accounts');
 
 /**
  * Compute disbursement breakdowns per escrow account.
@@ -31,7 +34,13 @@ async function computeAccountDisbursements(txnsByAccount = []) {
     if (!ownerPMSDisbAccount) {
       throw new Error('Did not find the ownership disbursement account for ' + element.ownership);
     }
+    const ownerExpenseAccount = OwnershipExpenseAccount[element.ownership];
+    if (!ownerExpenseAccount) {
+      throw new Error('Did not find the ownership expense account for ' + element.ownership);
+    }
+
     const disbursement = {};
+    let maxDisbursementIndex = 0;
 
     // Skip if already disbursed >80% of rent and over threshold
     if (Math.abs(element.disbursedThisMonth) >= 1000 && Math.abs(element.disbursedThisMonth) > element.rent * 0.8) {
@@ -51,24 +60,51 @@ async function computeAccountDisbursements(txnsByAccount = []) {
           currentAmount = (currentAmount * 1.18).toFixed(2); // Including GST
           currentAmount = Math.ceil(currentAmount); // round up
         }
-        disbursement[`disbursement${i + 1}_fixedAmount`] = Number(currentAmount);
-        disbursement[`disbursement${i + 1}_accountName`] = disb.depositAccount.accountName;
-        disbursement[`disbursement${i + 1}_bankName`] = disb.depositAccount.bankName;
-        disbursement[`disbursement${i + 1}_ifscNum`] = disb.depositAccount.ifscNum;
-        disbursement[`disbursement${i + 1}_accountNum`] = disb.depositAccount.accountNum;
-        disbursement[`disbursement${i + 1}_accountType`] = disb.depositAccount.accountType ?? 'savings';
+        const idx = i + 1;
+        disbursement[`disbursement${idx}_fixedAmount`] = Number(currentAmount);
+        disbursement[`disbursement${idx}_accountName`] = disb.depositAccount.accountName;
+        disbursement[`disbursement${idx}_bankName`] = disb.depositAccount.bankName;
+        disbursement[`disbursement${idx}_ifscNum`] = disb.depositAccount.ifscNum;
+        disbursement[`disbursement${idx}_accountNum`] = disb.depositAccount.accountNum;
+        disbursement[`disbursement${idx}_accountType`] = disb.depositAccount.accountType ?? 'savings';
 
         if (disb.depositAccount.accountNum === ownerPMSDisbAccount?.accountNumber) {
-          disbursement[`disbursement${i + 1}_disbrsementType`] = 'PMS Fee';
+          disbursement[`disbursement${idx}_disbrsementType`] = 'PMS Fee';
         } else {
-          disbursement[`disbursement${i + 1}_disbrsementType`] = 'Rent';
+          disbursement[`disbursement${idx}_disbrsementType`] = 'Rent';
         }
 
         totalFixedAmount += Number(currentAmount);
+        maxDisbursementIndex = Math.max(maxDisbursementIndex, idx);
       }
     }
 
-    // If fixed amounts exceed balance (except for specific ownerships), drop it
+    // Next, create a separate disbursement for each expense to the ownership expense account
+    let totalExpenses = 0;
+    if (Array.isArray(element.expenses)) {
+      // expenses may be stored as [ [ ... ] ] or [ ... ]
+      const rawExpenses =
+        Array.isArray(element.expenses[0]) && element.expenses.length === 1 ? element.expenses[0] : element.expenses;
+      for (const exp of rawExpenses) {
+        if (!isNaN(exp?.amount)) {
+          const amount = Number(exp.amount);
+          totalExpenses += amount;
+          const idx = maxDisbursementIndex + 1;
+          disbursement[`disbursement${idx}_fixedAmount`] = amount;
+          disbursement[`disbursement${idx}_accountName`] = ownerExpenseAccount.accountName;
+          disbursement[`disbursement${idx}_bankName`] = ownerExpenseAccount.bankName;
+          disbursement[`disbursement${idx}_ifscNum`] = ownerExpenseAccount.ifscNum;
+          disbursement[`disbursement${idx}_accountNum`] = ownerExpenseAccount.accountNumber;
+          disbursement[`disbursement${idx}_accountType`] = ownerExpenseAccount.accountType ?? 'current';
+          disbursement[`disbursement${idx}_disbrsementType`] = 'Expense';
+
+          totalFixedAmount += amount;
+          maxDisbursementIndex = idx;
+        }
+      }
+    }
+
+    // If fixed amounts (including expenses) exceed balance (except for specific ownerships), drop it
     if (totalFixedAmount > element.balance && ['gospaze', 'oroproptech'].includes(element.ownership) === false) {
       console.error(
         `Total Fixed Amounts ${totalFixedAmount} is more than the Current Balance ${element.balance}. Please check.`
@@ -76,7 +112,7 @@ async function computeAccountDisbursements(txnsByAccount = []) {
       return null;
     }
 
-    // Allocate remaining by percentage
+    // Allocate remaining by percentage (after fixed amounts and expenses)
     let remainingDisbAmount = element.balance - totalFixedAmount;
     for (let i = 0; i < element.disbursementRules[0].length; i++) {
       const disb = element.disbursementRules[0][i];
@@ -84,18 +120,21 @@ async function computeAccountDisbursements(txnsByAccount = []) {
 
       if (!isNaN(disb?.percentage)) {
         const currentAmount = ((remainingDisbAmount * disb.percentage) / 100.0).toFixed(2);
-        disbursement[`disbursement${i + 1}_fixedAmount`] = Number(currentAmount);
-        disbursement[`disbursement${i + 1}_accountName`] = disb.depositAccount.accountName;
-        disbursement[`disbursement${i + 1}_bankName`] = disb.depositAccount.bankName;
-        disbursement[`disbursement${i + 1}_ifscNum`] = disb.depositAccount.ifscNum;
-        disbursement[`disbursement${i + 1}_accountNum`] = disb.depositAccount.accountNum;
-        disbursement[`disbursement${i + 1}_accountType`] = disb.depositAccount.accountType ?? 'savings';
+        const idx = i + 1;
+        disbursement[`disbursement${idx}_fixedAmount`] = Number(currentAmount);
+        disbursement[`disbursement${idx}_accountName`] = disb.depositAccount.accountName;
+        disbursement[`disbursement${idx}_bankName`] = disb.depositAccount.bankName;
+        disbursement[`disbursement${idx}_ifscNum`] = disb.depositAccount.ifscNum;
+        disbursement[`disbursement${idx}_accountNum`] = disb.depositAccount.accountNum;
+        disbursement[`disbursement${idx}_accountType`] = disb.depositAccount.accountType ?? 'savings';
 
         if (disb.depositAccount.accountNum === ownerPMSDisbAccount?.accountNumber) {
-          disbursement[`disbursement${i + 1}_disbrsementType`] = 'PMS Fee';
+          disbursement[`disbursement${idx}_disbrsementType`] = 'PMS Fee';
         } else {
-          disbursement[`disbursement${i + 1}_disbrsementType`] = 'Rent';
+          disbursement[`disbursement${idx}_disbrsementType`] = 'Rent';
         }
+
+        maxDisbursementIndex = Math.max(maxDisbursementIndex, idx);
       }
     }
 
@@ -110,7 +149,7 @@ async function computeAccountDisbursements(txnsByAccount = []) {
       disbursements: [],
     };
 
-    for (let i = 0; i < element.disbursementRules[0].length; i++) {
+    for (let i = 0; i < maxDisbursementIndex; i++) {
       const fixedAmount = disbursement[`disbursement${i + 1}_fixedAmount`];
       // Only push entries that have an amount computed
       if (fixedAmount !== undefined && fixedAmount !== null) {
