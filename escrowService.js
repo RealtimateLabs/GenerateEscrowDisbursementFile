@@ -61,7 +61,7 @@ async function fetchEscrowTxnsByUserId(userId) {
             },
           },
         },
-        disbursedThisMonth: {
+        amountDisbursedThisMonth: {
           $toDouble: {
             $sum: {
               $map: {
@@ -112,7 +112,7 @@ async function fetchEscrowTxnsByUserId(userId) {
         dateCreated: 1,
         status: 1,
         balance: 1,
-        disbursedThisMonth: 1,
+        amountDisbursedThisMonth: 1,
         ownership: { $arrayElemAt: ['$txnDetails.ownership', 0] },
       },
     },
@@ -140,7 +140,7 @@ async function fetchEscrowTxnsByUserId(userId) {
         dateCreated: 1,
         status: 1,
         balance: 1,
-        disbursedThisMonth: 1,
+        amountDisbursedThisMonth: 1,
         serviceAgmId: { $arrayElemAt: ['$serviceAgmTxn._id', 0] },
         rentalAgmId: { $arrayElemAt: ['$rentalAgmTxn._id', 0] },
         propertyAddress: 1,

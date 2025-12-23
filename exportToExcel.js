@@ -29,9 +29,10 @@ async function generateDisbursementsExcel(accountDisbursements = [], options = {
     { header: 'Property Address', key: 'propertyAddress', width: 30 },
     { header: 'Current Balance', key: 'currentBalance', width: 16 },
     { header: 'Rent', key: 'rent', width: 12 },
-    { header: 'Disbursed This Month', key: 'disbursedThisMonth', width: 20 },
-    { header: 'Disbursement Amount', key: 'fixedAmount', width: 18 },
-    { header: 'Disbursement Type', key: 'disbrsementType', width: 18 },
+    { header: 'Already Disbursed This Month ?', key: 'alreadyDisbursedForTheMonth', width: 8 },
+    { header: 'Amount Disbursed This Month', key: 'amountDisbursedThisMonth', width: 20 },
+    { header: 'Current Disbursement Amount', key: 'currentDisbursementAmount', width: 18 },
+    { header: 'Disbursement Type', key: 'disbursementType', width: 18 },
     { header: 'Beneficiary Name', key: 'accountName', width: 24 },
     { header: 'Bank Name', key: 'bankName', width: 20 },
     { header: 'IFSC', key: 'ifscNum', width: 14 },
@@ -78,9 +79,10 @@ async function generateDisbursementsExcel(accountDisbursements = [], options = {
         propertyAddress: account.propertyAddress,
         currentBalance: account.currentBalance,
         rent: account.rent,
-        disbursedThisMonth: account.disbursedThisMonth,
-        fixedAmount: disb.fixedAmount,
-        disbrsementType: disb.disbrsementType,
+        alreadyDisbursedForTheMonth: account.alreadyDisbursedForTheMonth,
+        amountDisbursedThisMonth: account.amountDisbursedThisMonth,
+        currentDisbursementAmount: disb.fixedAmount,
+        disbursementType: disb.disbursementType,
         accountName: disb.accountName,
         bankName: disb.bankName,
         ifscNum: disb.ifscNum,
@@ -119,7 +121,8 @@ async function generateDisbursementsExcel(accountDisbursements = [], options = {
         'B', // propertyAddress
         'C', // currentBalance
         'D', // rent
-        'E', // disbursedThisMonth
+        'E', // alreadyDisbursedForTheMonth
+        'F', // amountDisbursedThisMonth
       ];
 
       for (const col of colsToMerge) {

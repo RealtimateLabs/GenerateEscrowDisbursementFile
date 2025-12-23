@@ -41,13 +41,17 @@ async function computeAccountDisbursements(txnsByAccount = []) {
 
     const disbursement = {};
     let maxDisbursementIndex = 0;
+    var alreadyDisbursedForTheMonth = false;
 
     // Skip if already disbursed >80% of rent and over threshold
-    if (Math.abs(element.disbursedThisMonth) >= 1000 && Math.abs(element.disbursedThisMonth) > element.rent * 0.8) {
+    if (
+      Math.abs(element.amountDisbursedThisMonth) >= 1000 &&
+      Math.abs(element.amountDisbursedThisMonth) > element.rent * 0.8
+    ) {
       console.log(
-        `${element.escrow.accountNum}: Already disbursed ${element.disbursedThisMonth} of rent ${element.rent} this month. Skipping...`
+        `${element.escrow.accountNum}: Already disbursed ${element.amountDisbursedThisMonth} of rent ${element.rent} this month. Skipping...`
       );
-      return null;
+      alreadyDisbursedForTheMonth = true;
     }
 
     // First accumulate fixed amounts (add GST for PMS account when taxesExtra is true)
@@ -55,7 +59,7 @@ async function computeAccountDisbursements(txnsByAccount = []) {
     for (let i = 0; i < element.disbursementRules[0].length; i++) {
       const disb = element.disbursementRules[0][i];
       if (!isNaN(disb?.fixedAmount)) {
-        let currentAmount = disb.fixedAmount;
+        let currentAmount = alreadyDisbursedForTheMonth ? 0 : disb.fixedAmount;
         if (disb.depositAccount.accountNum === ownerPMSDisbAccount?.accountNumber && disb.taxesExtra) {
           currentAmount = (currentAmount * 1.18).toFixed(2); // Including GST
           currentAmount = Math.ceil(currentAmount); // round up
@@ -69,9 +73,9 @@ async function computeAccountDisbursements(txnsByAccount = []) {
         disbursement[`disbursement${idx}_accountType`] = disb.depositAccount.accountType ?? 'savings';
 
         if (disb.depositAccount.accountNum === ownerPMSDisbAccount?.accountNumber) {
-          disbursement[`disbursement${idx}_disbrsementType`] = 'PMS Fee';
+          disbursement[`disbursement${idx}_disbursementType`] = 'PMS Fee';
         } else {
-          disbursement[`disbursement${idx}_disbrsementType`] = 'Rent';
+          disbursement[`disbursement${idx}_disbursementType`] = 'Rent';
         }
 
         totalFixedAmount += Number(currentAmount);
@@ -87,7 +91,7 @@ async function computeAccountDisbursements(txnsByAccount = []) {
         Array.isArray(element.expenses[0]) && element.expenses.length === 1 ? element.expenses[0] : element.expenses;
       for (const exp of rawExpenses) {
         if (!isNaN(exp?.amount)) {
-          const amount = Number(exp.amount);
+          const amount = alreadyDisbursedForTheMonth ? 0 : Number(exp.amount);
           totalExpenses += amount;
           const idx = maxDisbursementIndex + 1;
           disbursement[`disbursement${idx}_fixedAmount`] = amount;
@@ -96,7 +100,7 @@ async function computeAccountDisbursements(txnsByAccount = []) {
           disbursement[`disbursement${idx}_ifscNum`] = ownerExpenseAccount.ifscNum;
           disbursement[`disbursement${idx}_accountNum`] = ownerExpenseAccount.accountNumber;
           disbursement[`disbursement${idx}_accountType`] = ownerExpenseAccount.accountType ?? 'current';
-          disbursement[`disbursement${idx}_disbrsementType`] = 'Expense';
+          disbursement[`disbursement${idx}_disbursementType`] = 'Expense';
 
           totalFixedAmount += amount;
           maxDisbursementIndex = idx;
@@ -119,7 +123,9 @@ async function computeAccountDisbursements(txnsByAccount = []) {
       remainingDisbAmount = Math.max(remainingDisbAmount, 0);
 
       if (!isNaN(disb?.percentage)) {
-        const currentAmount = ((remainingDisbAmount * disb.percentage) / 100.0).toFixed(2);
+        const currentAmount = alreadyDisbursedForTheMonth
+          ? 0
+          : ((remainingDisbAmount * disb.percentage) / 100.0).toFixed(2);
         const idx = i + 1;
         disbursement[`disbursement${idx}_fixedAmount`] = Number(currentAmount);
         disbursement[`disbursement${idx}_accountName`] = disb.depositAccount.accountName;
@@ -129,9 +135,9 @@ async function computeAccountDisbursements(txnsByAccount = []) {
         disbursement[`disbursement${idx}_accountType`] = disb.depositAccount.accountType ?? 'savings';
 
         if (disb.depositAccount.accountNum === ownerPMSDisbAccount?.accountNumber) {
-          disbursement[`disbursement${idx}_disbrsementType`] = 'PMS Fee';
+          disbursement[`disbursement${idx}_disbursementType`] = 'PMS Fee';
         } else {
-          disbursement[`disbursement${idx}_disbrsementType`] = 'Rent';
+          disbursement[`disbursement${idx}_disbursementType`] = 'Rent';
         }
 
         maxDisbursementIndex = Math.max(maxDisbursementIndex, idx);
@@ -144,7 +150,8 @@ async function computeAccountDisbursements(txnsByAccount = []) {
       escrowAccountNum: element.escrow.accountNum,
       currentBalance: element.balance,
       rent: element.rent,
-      disbursedThisMonth: Math.abs(element.disbursedThisMonth),
+      alreadyDisbursedForTheMonth: alreadyDisbursedForTheMonth ? '✅' : '⏳',
+      amountDisbursedThisMonth: Math.abs(element.amountDisbursedThisMonth),
       ownership: element.ownership,
       disbursements: [],
     };
@@ -160,7 +167,7 @@ async function computeAccountDisbursements(txnsByAccount = []) {
           ifscNum: disbursement[`disbursement${i + 1}_ifscNum`],
           accountNum: disbursement[`disbursement${i + 1}_accountNum`],
           accountType: disbursement[`disbursement${i + 1}_accountType`],
-          disbrsementType: disbursement[`disbursement${i + 1}_disbrsementType`],
+          disbursementType: disbursement[`disbursement${i + 1}_disbursementType`],
         });
       }
     }
