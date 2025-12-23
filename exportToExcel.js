@@ -111,6 +111,12 @@ async function generateDisbursementsExcel(accountDisbursements = [], options = {
       const row = worksheet.getRow(rowNum);
       row.eachCell((cell) => {
         cell.fill = fill;
+        cell.border = {
+          right: {
+            style: 'thin',
+            color: { argb: 'FFD9D9D9' }, // light gray right border
+          },
+        };
       });
     }
 
